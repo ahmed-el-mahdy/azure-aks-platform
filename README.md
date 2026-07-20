@@ -1,109 +1,92 @@
-# Azure AKS Platform — Terraform Modules
+# Azure AKS Platform Blueprint
 
-Production-grade Terraform modules for deploying a complete Azure Kubernetes platform with APIM, Key Vault, networking, and observability.
+[![Terraform](https://img.shields.io/badge/Terraform-1.5%2B-844FBA?logo=terraform&logoColor=white)](https://developer.hashicorp.com/terraform)
+[![Azure](https://img.shields.io/badge/Azure-AKS%20%7C%20APIM%20%7C%20ACR-0078D4?logo=microsoftazure&logoColor=white)](https://azure.microsoft.com/)
+[![Portfolio](https://img.shields.io/badge/Portfolio-Live-14B8A6)](https://ahmed-el-mahdy.github.io/)
 
-![Terraform](https://img.shields.io/badge/Terraform-1.5+-623CE4?logo=terraform)
-![Azure](https://img.shields.io/badge/Azure-AKS%20%7C%20APIM%20%7C%20KV-0078D4?logo=microsoftazure)
-![License](https://img.shields.io/badge/License-MIT-green)
+A modular Terraform reference for an Azure platform built around AKS, API Management, Azure Container Registry, Key Vault, and hub-spoke networking.
+
+## What This Repository Demonstrates
+
+- Environment composition from small, reusable Terraform modules.
+- AKS with managed identity, Azure RBAC, autoscaling, Calico policy, OIDC, Key Vault CSI, Azure Monitor metrics, and Log Analytics.
+- Private-by-default Key Vault access with optional private endpoint support.
+- ACR integration through an explicit `AcrPull` role assignment.
+- APIM network integration with a global rate-limit and CORS policy example.
+- Consistent naming and tagging across the platform resources.
 
 ## Architecture
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                        Azure Subscription                        │
-├──────────────────────────────────────┬──────────────────────────┤
-│  Hub VNet (10.0.0.0/16)             │  Spoke VNet (10.1.0.0/16)│
-│  ┌──────────┐  ┌──────────────┐    │  ┌─────────────────────┐ │
-│  │ Firewall │  │ App Gateway  │    │  │  AKS Cluster        │ │
-│  │ Subnet   │  │ + WAF v2     │    │  │  ├─ System Pool     │ │
-│  └──────────┘  └──────────────┘    │  │  └─ User Pool       │ │
-│                                      │  └─────────────────────┘ │
-│  ┌──────────────────────────────┐   │  ┌──────────┐  ┌───────┐│
-│  │  Azure API Management       │   │  │ Key Vault│  │ ACR   ││
-│  │  (internal + external GW)   │   │  └──────────┘  └───────┘│
-│  └──────────────────────────────┘   │                          │
-├─────────────────────────────────────┴──────────────────────────┤
-│  Observability: Log Analytics → App Insights → Grafana          │
-└─────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart LR
+    HUB[Hub VNet] <--> SPOKE[Spoke VNet]
+    HUB --> APIM[API Management]
+    SPOKE --> AKS[Azure Kubernetes Service]
+    SPOKE --> KV[Key Vault]
+    ACR[Container Registry] --> AKS
+    KV --> AKS
+    AKS --> LAW[Log Analytics]
 ```
 
-## Module Structure
+The VNet module also reserves hub subnets for Azure Firewall and Application Gateway. Those services are not provisioned by this repository.
 
-```
-modules/
-├── aks/                    # AKS cluster with autoscaling + RBAC
-├── api_management/         # APIM instance + policies
-├── application_gateway/    # App Gateway with WAF v2
-├── container_registry/     # ACR with geo-replication
-├── firewall/              # Azure Firewall with rules
-├── keyvault/              # Key Vault + access policies
-├── network_security_group/ # NSG rules for each subnet
-├── observability/         # Log Analytics + App Insights
-├── redis/                 # Azure Cache for Redis
-├── storage_account/       # Storage for Terraform state
-└── vnet/                  # Hub-spoke VNet peering
+## Implemented Modules
+
+| Module | Responsibility |
+| --- | --- |
+| `modules/vnet` | Hub and spoke VNets, platform subnets, and bidirectional peering |
+| `modules/aks` | AKS, system node pool, monitoring, CSI integration, and role assignments |
+| `modules/container_registry` | ACR with admin access disabled and optional geo-replication |
+| `modules/keyvault` | RBAC-enabled Key Vault and optional private endpoint |
+| `modules/api_management` | APIM instance, managed identity, network integration, and global policy |
+
+`environments/dev` is the runnable composition example. `environments/prod/terraform.tfvars` is a production-oriented variable set, not a complete independent root module.
+
+## Repository Structure
+
+```text
+.
+|-- environments/
+|   |-- dev/
+|   `-- prod/terraform.tfvars
+`-- modules/
+    |-- aks/
+    |-- api_management/
+    |-- container_registry/
+    |-- keyvault/
+    `-- vnet/
 ```
 
-## Quick Start
+## Validate Safely
+
+Prerequisites: Terraform 1.5 or later, Azure CLI, and an authenticated Azure subscription for provider-backed planning.
 
 ```bash
-# 1. Initialize backend
+terraform fmt -check -recursive
 cd environments/dev
-terraform init
-
-# 2. Plan
+terraform init -backend=false
+terraform validate
 terraform plan -var-file="terraform.tfvars"
-
-# 3. Apply
-terraform apply -var-file="terraform.tfvars"
 ```
 
-## Environments
+The plan can create billable Azure resources. Review the variables, naming, SKU choices, and network ranges before any apply operation.
 
-| Environment | Purpose | Node Size | Autoscaling |
-|------------|---------|-----------|-------------|
-| `dev` | Development & testing | Standard_B4ms | 1-3 nodes |
-| `qa` | QA validation | Standard_D4s_v5 | 2-5 nodes |
-| `staging` | Pre-production | Standard_D4s_v5 | 2-5 nodes |
-| `prod` | Production | Standard_D8s_v5 | 3-10 nodes |
+## Important Inputs
 
-## Features
+The development root expects values for the Azure tenant, AKS administrator group IDs, APIM publisher details, address spaces, node sizing, and private endpoint behavior. Example defaults and environment values are documented in:
 
-- **AKS**: OIDC issuer, Key Vault CSI, Calico network policy, autoscaling
-- **Networking**: Hub-spoke topology, VNet peering, private endpoints
-- **Security**: Azure Firewall, WAF v2, NSG rules, managed identity
-- **APIM**: Internal mode + App Gateway frontend, rate limiting, JWT validation
-- **Observability**: Log Analytics, App Insights, Prometheus metrics
-- **State**: Remote state in Azure Storage with locking
+- [`environments/dev/variables.tf`](environments/dev/variables.tf)
+- [`environments/dev/terraform.tfvars`](environments/dev/terraform.tfvars)
+- [`environments/dev/backend.hcl`](environments/dev/backend.hcl)
 
-## Usage Example
+## Security and Production Notes
 
-```hcl
-module "aks" {
-  source = "./modules/aks"
+- Replace placeholder tenant and identity values before planning.
+- Restrict the APIM CORS policy for production workloads; the example currently permits all origins.
+- Add policy-as-code, private DNS zones, diagnostic settings, and state-storage bootstrap for a full production platform.
+- Use workload identity or federated CI credentials instead of long-lived service-principal secrets.
+- Treat the running Azure environment as the source of truth before importing this blueprint into an existing estate.
 
-  cluster_name        = "myplatform-${var.environment}-aks"
-  location            = var.location
-  resource_group_name = azurerm_resource_group.main.name
-  vnet_subnet_id      = module.vnet.aks_subnet_id
+## Status
 
-  node_size           = var.aks_node_size
-  enable_auto_scaling = true
-  min_node_count      = var.aks_min_nodes
-  max_node_count      = var.aks_max_nodes
-
-  enable_aad_rbac     = true
-  admin_group_ids     = [var.aks_admin_group_id]
-}
-```
-
-## Prerequisites
-
-- Terraform >= 1.5
-- Azure CLI >= 2.50
-- Azure subscription with Contributor + User Access Administrator
-- Service Principal or Managed Identity for CI/CD
-
-## License
-
-MIT
+This is a portfolio reference implementation. It demonstrates platform composition and security-aware defaults, but it is not a drop-in production landing zone.

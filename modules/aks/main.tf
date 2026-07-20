@@ -23,9 +23,9 @@ resource "azurerm_kubernetes_cluster" "main" {
     vnet_subnet_id              = var.vnet_subnet_id
     os_disk_size_gb             = var.os_disk_size_gb
 
-    auto_scaling_enabled = var.enable_auto_scaling
-    min_count            = var.enable_auto_scaling ? var.min_node_count : null
-    max_count            = var.enable_auto_scaling ? var.max_node_count : null
+    enable_auto_scaling = var.enable_auto_scaling
+    min_count           = var.enable_auto_scaling ? var.min_node_count : null
+    max_count           = var.enable_auto_scaling ? var.max_node_count : null
 
     upgrade_settings {
       max_surge                     = var.max_surge
@@ -56,7 +56,7 @@ resource "azurerm_kubernetes_cluster" "main" {
 
   key_vault_secrets_provider {
     secret_rotation_enabled  = true
-    rotation_poll_interval   = "2m"
+    secret_rotation_interval = "2m"
   }
 
   network_profile {
