@@ -19,12 +19,16 @@ A modular Terraform reference for an Azure platform built around AKS, API Manage
 
 ```mermaid
 flowchart LR
+    ROOT[Environment composition] --> HUB[Hub VNet]
+    ROOT --> SPOKE[Spoke VNet]
     HUB[Hub VNet] <--> SPOKE[Spoke VNet]
     HUB --> APIM[API Management]
     SPOKE --> AKS[Azure Kubernetes Service]
     SPOKE --> KV[Key Vault]
-    ACR[Container Registry] --> AKS
-    KV --> AKS
+    ACR[Container Registry] --> PULL[AcrPull authorization]
+    PULL --> AKS
+    KV --> CSI[CSI provider integration]
+    CSI --> AKS
     AKS --> LAW[Log Analytics]
 ```
 
@@ -90,6 +94,12 @@ The development root expects values for the Azure tenant, AKS administrator grou
 ## Status
 
 This is a portfolio reference implementation. It demonstrates platform composition and security-aware defaults, but it is not a drop-in production landing zone.
+
+## Review Gates
+
+Source review: 30 October 2026. A module declaration or diagram edge is not a live health result. The composition, workload deployment, APIM operations/backend routes, vault permissions and effective network paths require independent checks. Firewall/App Gateway provisioning and a complete production root remain outside this reference.
+
+Before adoption, review provider/runtime pins, existing state and private DNS ownership, RBAC scope, CORS and SKU/network compatibility. Run local validation before an authorized cloud plan and apply only a reviewed saved artifact. Do not copy a module into an existing estate and assume it owns pre-existing resources.
 
 ## Experience Connection
 
