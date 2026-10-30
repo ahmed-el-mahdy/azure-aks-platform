@@ -90,3 +90,12 @@ The development root expects values for the Azure tenant, AKS administrator grou
 ## Status
 
 This is a portfolio reference implementation. It demonstrates platform composition and security-aware defaults, but it is not a drop-in production landing zone.
+
+## Experience Connection
+
+This example supports discussion of environment ownership, managed identities, network boundaries and reviewed infrastructure changes. It is not a copy of employer production configuration.
+
+- [Career summary and CV bullets](https://github.com/ahmed-el-mahdy/Career-Advance/blob/main/progress/CV-BULLETS.md) separate this five-module blueprint from production delivery.
+- [End-to-end migration story](https://github.com/ahmed-el-mahdy/Career-Advance/blob/main/progress/STAR-ANSWERS.md#star-9-end-to-end-staging2-migration) explains phased infrastructure/data/application gates and why a narrow network change can be safer than a broad rewrite.
+
+Experience material was reviewed on 30 October 2026. A reference module or diagram does not establish a deployed control, current state alignment or tested recovery.
